@@ -19,6 +19,7 @@ JavaScript有九种类型。分别为：
 7. 对象（Objects） - 例如：哈希表{foo：'bar'，bif：[1，2]}。类型boxed，对象实例。
 8. 正则表达式（RegularExpression） - 例如： / foo \ s*（[bar] +）/。类型boxed，RegExp实例。
 9. 函数（Functions）- 例如：function(x) {return x + 1}。类型boxed，函数实例。
+                                           + 
 实际上空值几乎是从来不会通过Javascript产生的。只有一种情况，你可能会碰到空值，如果你指定的地方（大部分时间，你会得到未定义，一个值得注意的例外是document.getElementById，如果找不到对应元素它返回NULL）。一般情况下，建议使用未定义类型， 而不是使用空类型，这样可以使错误更容易追查。
 
 >1.Boxing是指的其是否由指针表示。boxed类型是一个引用类型，unboxed类型是一个值类型。在JavaScript中，这会有额外的影响，可参见4.6节。
