@@ -85,18 +85,15 @@ this是什么？这个问题看起来很简单，但实际上相当具有挑战�
 1. 如果该函数被直接调用，如foo(5)，那么该函数的内部的this将指向全局对象。
 2. 如果该函数作为对象的方法被调用，如x.foo（5），那么该函数内部的this指向该对象，例子中为对象X。
 3. 如果该函数开始为对象的方法，然后被直接调用：
-
-    var f = x.foo;
-    f(5);
-
+    `var f = x.foo;
+    f(5);`
 那么this重新指向全局函数。调用方式决定this的指向，f的赋值方式并不会对此产生影响。
 4. 如果该函数调用使用apply或call，此时this指向所设置的对象（除非尝试将其设置为null或undefined，此种情况this将重新指向全局函数)：
-
-    var f = function() { return this; };
+    `var f = function() { return this; };
     f.call(4)       // => 4
     f.call(0)       // => 0
     f.call(false)   // => false
-    f.call(null)    // => [全局对象(object global)]
+    f.call(null)    // => [全局对象(object global)]`
 
 鉴于此种不可预知性，很多JavaScript库提供了方法来设置函数this绑定至某调用不变量（在JavaScript圈子中称为函数绑定）。一个极简方案是定义一个函数利用apply传递参数和正确this值（幸运的是，闭包变量行为正常）：
     var bind = function(f, this_value) {
