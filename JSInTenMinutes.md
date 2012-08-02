@@ -88,7 +88,6 @@ this是什么？这个问题看起来很简单，但实际上相当具有挑战�
     
         var f = x.foo;
         f(5);
-    
 那么this重新指向全局函数。调用方式决定this的指向，f的赋值方式并不会对此产生影响。
 4. 如果该函数调用使用apply或call，此时this指向所设置的对象（除非尝试将其设置为null或undefined，此种情况this将重新指向全局函数)：
         var f = function() { return this; };
