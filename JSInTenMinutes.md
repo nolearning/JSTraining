@@ -10,15 +10,15 @@
 ------------------
 JavaScript有九种类型。分别为：
 
-1.空值类型（null）- 它没有任何属性。例如：null.foo 无效。类型unboxed[1]。
-2.未定义（undefined）- 访问未创建对象的返回。例如：document.nonexistent。也没有任何属性，类型unboxed。
-3.字符串（string） - 例如：'foo'，“foo”（单、双引号没有区别）。某些时候类型boxed，例如作为字符串实例时。
-4.数值（Numbers） - 例如：5， 3E+10（在除法运算时所有的数字以浮点方式处理，但可以通过X >>> 0方式截断）。某些时候类型boxed，例如数字实例时。
-5.布尔（bool） - true或者false。某些时候类型boxed，例如布尔实例时。
-6.数组（Array） - 例如： [1，2，“foo”，[3，4] |。类型boxed，数组实例。
-7.对象（Objects） - 例如：哈希表{foo：'bar'，bif：[1，2]}。类型boxed，对象实例。
-8.正则表达式（RegularExpression） - 例如： / foo \ s*（[bar] +）/。类型boxed，RegExp实例。
-9.函数（Functions）- 例如：function(x) {return x + 1}。类型boxed，函数实例。
+1. 空值类型（null）- 它没有任何属性。例如：null.foo 无效。类型unboxed[1]。
+2. 未定义（undefined）- 访问未创建对象的返回。例如：document.nonexistent。也没有任何属性，类型unboxed。
+3. 字符串（string） - 例如：'foo'，“foo”（单、双引号没有区别）。某些时候类型boxed，例如作为字符串实例时。
+4. 数值（Numbers） - 例如：5， 3E+10（在除法运算时所有的数字以浮点方式处理，但可以通过X >>> 0方式截断）。某些时候类型boxed，例如数字实例时。
+5. 布尔（bool） - true或者false。某些时候类型boxed，例如布尔实例时。
+6. 数组（Array） - 例如： [1，2，“foo”，[3，4] |。类型boxed，数组实例。
+7. 对象（Objects） - 例如：哈希表{foo：'bar'，bif：[1，2]}。类型boxed，对象实例。
+8. 正则表达式（RegularExpression） - 例如： / foo \ s*（[bar] +）/。类型boxed，RegExp实例。
+9. 函数（Functions）- 例如：function(x) {return x + 1}。类型boxed，函数实例。
 实际上空值几乎是从来不会通过Javascript产生的。只有一种情况，你可能会碰到空值，如果你指定的地方（大部分时间，你会得到未定义，一个值得注意的例外是document.getElementById，如果找不到对应元素它返回NULL）。一般情况下，建议使用未定义类型， 而不是使用空类型，这样可以使错误更容易追查。
 
 >1.Boxing是指的其是否由指针表示。boxed类型是一个引用类型，unboxed类型是一个值类型。在JavaScript中，这会有额外的影响，可参见4.6节。
