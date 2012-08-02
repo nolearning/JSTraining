@@ -5,9 +5,11 @@
 ------------------
 本指南适用于任何知道一些Javascript，并想快速[1]了解其先进功能的读者。如果你还了解另一种函数式语言，如Ruby，Perl，Python或ML，Scheme等，它会更容易阅读，因为我没有解释初级的函数原理。 
 >1.会超过10分钟，尽管标题这么写。
+
 2	类型
 ------------------
 JavaScript有九种类型。分别为：
+
 1.空值类型（null）- 它没有任何属性。例如：null.foo 无效。类型unboxed[1]。
 2.未定义（undefined）- 访问未创建对象的返回。例如：document.nonexistent。也没有任何属性，类型unboxed。
 3.字符串（string） - 例如：'foo'，“foo”（单、双引号没有区别）。某些时候类型boxed，例如作为字符串实例时。
@@ -18,6 +20,7 @@ JavaScript有九种类型。分别为：
 8.正则表达式（RegularExpression） - 例如： / foo \ s*（[bar] +）/。类型boxed，RegExp实例。
 9.函数（Functions）- 例如：function(x) {return x + 1}。类型boxed，函数实例。
 实际上空值几乎是从来不会通过Javascript产生的。只有一种情况，你可能会碰到空值，如果你指定的地方（大部分时间，你会得到未定义，一个值得注意的例外是document.getElementById，如果找不到对应元素它返回NULL）。一般情况下，建议使用未定义类型， 而不是使用空类型，这样可以使错误更容易追查。
+
 >1.Boxing是指的其是否由指针表示。boxed类型是一个引用类型，unboxed类型是一个值类型。在JavaScript中，这会有额外的影响，可参见4.6节。
 
 3	函数（Functions）
