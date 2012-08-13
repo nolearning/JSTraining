@@ -31,57 +31,35 @@ JavaScript有九种类型。分别为：
 >4.注意不存在块作用域，JavaScript中整个函数为一个作用域。
 
 ###3.1 可变参数行为（一个很酷的东西）###
-函数都是可变参数的[5]。是可变正式参数绑定，如果他们存在;否则他们未定义。
+函数都是可变参数的[5]。形参对应的实参如果存在则被绑定，;否则为未定义。
 例如：
-//code
-
-（函数（X，Y）{返回x + Y}）（'富'）/ / =>'fooundefined“
-
-
-    一流的方式，也可以访问到你的函数的参数：
-
-
-VAR f =函数（）{返回参数[0 +参数[1]};
-G =（）{返回的arguments.length};
-F（'富'）/ / => fooundefined的“
-Ğ（空的，假的，不确定的）/ / => 3
-
-
-    {\，{\ TT参数}关键字是不是一个数组！它看起来就像一个。特别是，做任何这些会引起问题：
-
-
-arguments.concat（[1，2，3]）
-[1，2，3]。Concat的（论据）
-arguments.push（'富'）
-arguments.shift（）
-
-
-    |参数|对象数组，以获得从，你可以说| Array.prototype.slice.call（参数）。据我所知，这是最好的方式去它。
+    (function (x, y) {return x + y;}) ('foo')       // =>'fooundefined'
+函数的参数可以作为第一级对象被直接访问：
+    var f = function () {return arguments[0] + arguments[1];};
+    var g = function () {return arguments.length};
+    f ('foo')                     // => 'fooundefined'
+    g (null, false, undefined)    // => 3
+关键字arguments不是一个数组！它只是看起来像。如下使用则会引起错误：
+    arguments.concat ([1, 2, 3])
+    [1, 2, 3].concat (arguments)
+    arguments.push ('foo')
+    arguments.shift ()
+从arguments对象获取数组可以用Array.prototype.slice.call (arguments)。这是所知最好的获取方式。
 
 >5.函数可接收参数数目被称为它的实参数量(arity).所以单子(monadic)的一元函数只接受一个参数，二价(dyadic)的二元函数接受二个函数，以此类推。如果一个函数可以接收任意数目参数，那么其是可变参数的(variadic)。
 
-###3.2	\第{懒惰的范围（一件很酷的事情）}###
-    在内部，功能使用词法作用域链。然而，在函数体内的变量都没有解决，直到函数被调用。这有一些非常好的优势，
-    也许其中最重要的自我参考：
+###3.2	惰性作用域（一个很酷的东西）}###
+在内部函数使用词法作用域链。然而，在函数体内的变量都不会被解释，直到函数被调用。这会带来一些非常好的优势，也许其中最重要的就是自指(self-reference)：
+    var f = function () {return f;};
+    f () === f;              // => true
+>珍闻病理：惰性作用域的一个重要后果是，你可以创建一个指向可能永远不存在的变量的函数。这使得使用Javascript很难调试。好消息是，JavaScript可以通过toString方法支持句法宏：
+    var f = function () {return $0 + $1;};
+    var g = eval (f.toString ().replace(/\$(\d+)/g, 
+               function (_, digits) {return 'arguments[' + digits + ']'}));
+    g (5, 6)
+>理论上通过扩展此原则，可以实现真正的结构宏，运算符重载，类型系统[6]，或其他东西。
+>6.但愿不会如此！
 
-
-VAR F =（）{返回f};
-F（）=== F / / =>真
-
-
-    \开始{引用}
-      {\ BF珍闻病理：}懒作用域的重要后果是，你可以创建功能，是指可能永远存在的变量。这使得使用Javascript很难
-      调试。良好的部分是，JavaScript可以支持通过句法宏|的toString |方法：
-
-
-VAR F =（）{$ 0 $ 1};
-VAR G =的eval（f.toString（）（/ \ $（\ D +）/克，
-          功能（，数字）{'参数['+数字+']'}））;
-G（5,6）/ / => 11（在IE浏览器除外）
-
-
-      理论上延长这一原则，人们可以实现真正的结构宏，运算符重载，类型系统，\脚注{上帝保佑。}或其他东西。
-    \ {引用}
 
 ###3.3 this的含义（令人震惊的灾难）###
 this是什么？这个问题看起来很简单，但实际上相当具有挑战性，而JavaScript使它成为近乎不可能回答清楚。当位于函数外（即全局域），this指向特定的全局对象，在浏览器环境中是window对象。本质的问题是在函数内部this会有什么的行为，而这会取决于函数本身的调用方式。具体如下：
