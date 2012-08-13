@@ -12,13 +12,13 @@ JavaScript有九种类型。分别为：
 
 1. 空值类型（null）- 它没有任何属性。例如：null.foo 无效。类型unboxed[1]。
 2. 未定义（undefined）- 访问未创建对象的返回。例如：document.nonexistent。也没有任何属性，类型unboxed。
-3. 字符串（string） - 例如：'foo'，“foo”（单、双引号没有区别）。某些时候类型boxed，例如作为字符串实例时。
-4. 数值（Numbers） - 例如：5， 3E+10（在除法运算时所有的数字以浮点方式处理，但可以通过X >>> 0方式截断）。某些时候类型boxed，例如数字实例时。
+3. 字符串（string） - 例如：'foo'，"foo"（单、双引号没有区别）。某些时候类型boxed，例如作为字符串实例时。
+4. 数值（Numbers） - 例如：5, 3E+10（在除法运算时所有的数字以浮点方式处理，但可以通过X >>> 0方式截断）。某些时候类型boxed，例如数字实例时。
 5. 布尔（bool） - true或者false。某些时候类型boxed，例如布尔实例时。
-6. 数组（Array） - 例如： [1，2，“foo”，[3，4] |。类型boxed，数组实例。
-7. 对象（Objects） - 例如：哈希表{foo：'bar'，bif：[1，2]}。类型boxed，对象实例。
-8. 正则表达式（RegularExpression） - 例如： / foo \ s*（[bar] +）/。类型boxed，RegExp实例。
-9. 函数（Functions）- 例如：function(x) {return x + 1}。类型boxed，函数实例。
+6. 数组（Array） - 例如： `[1，2，"foo"，[3，4]]`。类型boxed，数组实例。
+7. 对象（Objects） - 例如：哈希表`{foo：'bar'，bif：[1，2]}`。类型boxed，对象实例。
+8. 正则表达式（RegularExpression） - 例如： `/foo\s*([bar]+)/`。类型boxed，RegExp实例。
+9. 函数（Functions）- 例如：`function(x) {return x + 1}`。类型boxed，函数实例。
  
 实际上空值几乎是从来不会通过Javascript产生的。只有一种情况，你可能会碰到空值，如果你指定的地方（大部分时间，你会得到未定义，一个值得注意的例外是document.getElementById，如果找不到对应元素它返回NULL）。一般情况下，建议使用未定义类型， 而不是使用空类型，这样可以使错误更容易追查。
 
@@ -52,7 +52,7 @@ JavaScript有九种类型。分别为：
     arguments.push ('foo')
     arguments.shift ()
 
-从arguments对象获取数组可以用Array.prototype.slice.call (arguments)。这是所知最好的获取方式。
+从arguments对象获取数组可以用`Array.prototype.slice.call (arguments)`。这是所知最好的获取方式。
 
 >5.函数可接收参数数目被称为它的实参数量(arity).所以单子(monadic)的一元函数只接受一个参数，二价(dyadic)的二元函数接受二个函数，以此类推。如果一个函数可以接收任意数目参数，那么其是可变参数的(variadic)。
 
@@ -76,8 +76,8 @@ JavaScript有九种类型。分别为：
 ###3.3 this的含义（令人震惊的灾难）###
 this是什么？这个问题看起来很简单，但实际上相当具有挑战性，而JavaScript使它成为近乎不可能回答清楚。当位于函数外（即全局域），this指向特定的全局对象，在浏览器环境中是window对象。本质的问题是在函数内部this会有什么的行为，而这会取决于函数本身的调用方式。具体如下：
 
-1. 如果该函数被直接调用，如foo(5)，那么该函数的内部的this将指向全局对象。
-2. 如果该函数作为对象的方法被调用，如x.foo（5），那么该函数内部的this指向该对象，例子中为对象X。
+1. 如果该函数被直接调用，如`foo(5)`，那么该函数的内部的this将指向全局对象。
+2. 如果该函数作为对象的方法被调用，如`x.foo（5）`，那么该函数内部的this指向该对象，例子中为对象X。
 3. 如果该函数开始为对象的方法，然后被直接调用：
     
         var f = x.foo;
@@ -92,33 +92,43 @@ this是什么？这个问题看起来很简单，但实际上相当具有挑战�
         f.call(null)    // => [全局对象(object global)]
 
 鉴于此种不可预知性，很多JavaScript库提供了方法来设置函数this绑定至某调用不变量（在JavaScript圈子中称为函数绑定）。一个极简方案是定义一个函数利用apply传递参数和正确this值（幸运的是，闭包变量行为正常）：
+
     var bind = function(f, this_value) {
         return function() { return f.apply(this_value, arguments); };
     };
-apply和call之间的区别很简单：f.call(x, y, z)等同于f.apply(x, [y, z])，这与bind(f, x)(y, z)是一样的。也就是说，call和apply的第一个参数会作为函数的this所指向的对象，其余则作为参数传递给函数。在apply中传递的参数集合应在一个数组中，而call中则直接将给定的参数转发（第一个参数除外）。
 
-####3.3.1 重要的后果：ETA减少}####
-中功能最全的编程语言，你可以埃塔减少的事情，也就是说，如果你有一个函数的形式|函数（x）{F（X）} |，你可以使用| F |，而不是返回。 但在Javascript这并不总是一个安全的转变;考虑下面的代码：
-    array.prototype.each =功能（F）{
-        （VAR我= 0，L = this.length; <L + + I）
-        F（[I]）;
+apply和call之间的区别很简单：`f.call(x, y, z)`等同于`f.apply(x, [y, z])`，这与`bind(f, x)(y, z)`是一样的。也就是说，call和apply的第一个参数会作为函数的this所指向的对象，其余则作为参数传递给函数。在apply中传递的参数集合应在一个数组中，而call中则直接将给定的参数转发（第一个参数除外）。
+
+####3.3.1 重要的结果：ETA简化
+
+在大多数函数语言中，你可以eta简化事物，即如果你有一个函数如：`function (x) {return f (x);}`，你可以使用`f`替代。 但在Javascript这并不总是一个安全的变换；考虑如下的代码：
+
+    array.prototype.each = function (f) {
+        for (var i = 0, l = this.length; i < l; ++i)
+            f (this[i]);
     };
     
-    XS = [];
-    some_array.each（函数（x）{xs.push（X）}）;
-这可能是诱人的更为简洁的改写：
+    var xs = [];
+    some_array.each (function (x) {xs.push(x)});
+
+下面更为简洁的改写看起来非常诱人：
+
     some_array.each（xs.push）;
-会，但后者的形式将在一个神秘的Javascript错误导致当本机| Array.push函数找到|这是全局对象，而不是| XS。 原因应该是显而易见的：|每| 内部称为函数时，它被调用的功能，而不是一个方法。事实上，功能开始作为一种方法      | XS被遗忘。 （就像\ REF {ITM：忘记}。以上）围绕这个最简单的方法是结合| xs.push |以| XS |：
-    some_array.each（绑定（xs.push，XS），）;
 
-####3.3.2 从来都不是falsy {奇珍闻：{\ TT这}}####
-原因在部分解释\ REF {秒：拳击} {\ TT这将永远不会被设置到falsy值。如果您尝试将其设置为{\ TT空}或{\ TT未定义}，这样说：
-    VAR =函数（）{
-        返回本;
+但是后者将导致一个难以预见的Javascript错误，因为内置函数Array.push的this此时指向一个全局对象，而不是xs。 原因显而易见：一个函数在each内部被调用时，它是作为一个function而不是一个method被调用。此函数是xs的一个方法这个事实已被被遗忘。（如上例子3忘记）
+
+this最简单的方法是绑定xs.push到xs：
+    some_array.each (bind (xs.push, xs));
+
+####3.3.2 怪事：this从来不是假值(falsy)####
+如4.6节中的解释，this将永远不会被设置为假值。如果尝试将其设置为空(null)或未定义(undefined)，如下：
+
+    var f = function () {
+        return this;
     };
-    f.call（空）; / /返回空，对吗？
+    f.call (null);    // returns null, right?
 
-会事实上，它会成为全球的{\ TT这个}，通常在浏览器{\ TT视窗中}。如果您使用falsy原始，{\ TT这}将参考的，原始的盒装版本。这有一些有悖常理的后果，更详细地覆盖在第\ REF {秒：自动装箱}。
+事实上，它会返回全局对象，通常在浏览器为window对象。如果使用原生类型的假值，this将指向此值的装箱版本。这有一些有悖常理，更详细分析请见5.4节。
 
 4 Gotchas
 ------------------------
