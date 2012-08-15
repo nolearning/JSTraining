@@ -186,7 +186,7 @@ Javascript会将合二为一：
     for (k in some_object)       // k是全局变量
     for (var k in some_object)   // k是函数内的局部变量
 
-###4.4 惰性的区域和可变性###
+###4.4 惰性区域和可变性###
 这是个优雅的灾难。请看：
 
     var x = [];
@@ -397,7 +397,7 @@ has_truthy_stuff返回false的原因是因为当{}被强制转换为数字，就
         ...
         throw 3;
     } catch (n) {
-        // n有没有堆栈轨迹！
+        // n没有堆栈轨迹！
     }
 
 此throw/catch并不计算堆栈轨迹，使得异常处理比平时快不少。但对于调试来说，如下抛出一个适当的错误是更好的：
@@ -409,70 +409,79 @@ has_truthy_stuff返回false的原因是因为当{}被强制转换为数字，就
         //e中含有堆栈轨迹，即使在Firebug也是有用的
     }
 
-###4.11 typeof运算要小心###
+###4.11 小心运用typeof###
+
 因为它的行为是这样的：
 
-    typeof运算功能（）{} / / =>'功能'
-    typeof运算[1，2，3] / / =>“对象”
-    typeof运算{} / / =>“对象”
-    typeof运算空/ / =>“对象”
-    typeof运算typeof运算/ /挂起永远在Firefox
-    
-TT {typeof运算\}是一个真正跛脚的方法来检测的东西，在许多情况下。\脚注{因为它返回一个字符串，它是稍微慢比使用{\ TT。构造}}更好的是使用对象的|构造属性，像这样：
+    typeof function () {}       // => 'function'
+    typeof [1, 2, 3]            // => 'object'
+    typeof {}                   // => 'object'
+    typeof null                 // => 'object'
+    typeof typeof               // => Firefox中挂起
 
-    （函数（）{}）。构造函数/ / =>功能
-    [1，2，3]。构造函数/ / =>阵列
-    （{}）。构造函数/ / =>对象
-    true.constructor / / =>布尔
-    null.constructor / / TypeError异常：空没有属性
+许多情况下用typeof操作符来检测对象类型是个较差的选择[13]。更好方式是使用对象的constructor属性，如下：
 
-为了抵御| NULL |和|未定义（既不让你问他们的构造），您可以尝试依靠这些价值观的虚假：
+    (function () {}).constructor        // => Function
+    [1, 2, 3].constructor               // => Array
+    ({}).constructor                    // => Object
+    true.constructor                    // => Boolean
+    null.constructor                    // => TypeError: null没有任何属性
+
+为避免空(null)和未定义(undefined)（它们的构造均不可被访问），可能会基于它们的假值特性：
 
     x && x.constructor
     
-但在实际上将失败|'' | | 0 |，|虚假|，|南，以及其他可能。我知道来解决这个问题的唯一途径，是刚刚做了比较：
+但实际上这会让''，0，false，NaN及其它可能值均失败。据知解决这个问题的唯一途径，是对其做比较：
 
-    ===空| | X ===未定义？ X：x.constructor
-    x ==空？ X：x.constructor / /同样的事情，但更简洁
+    x === null || x === undefined ? x : x.constructor
+    x == null ? x : x.constructor       // 同上，但更简洁
     
-另外，如果你只是想找到的东西是否是一个给定类型的，你可以使用| instanceof的，它永远不会抛出异常\脚注{嗯，差不多。如果你问 NULL}，未定义，或类似不适当的事情放在右侧，你会得到一个{\ TT TypeError异常}}
+另如只是想确定某个对象是否是一个给定类型，可使用instanceof操作符，它永远不会抛出异常[14]。
 
-###4.12 也小心instanceof###
-T的instanceof}一般比{\ TT typeof运算}更为有用，但它只有盒装值。例如，这些全是假的：
-    3 instanceof的数
-    '富'的instanceof弦乐
-    真正的instanceof布尔
+>13.由于其返回一个字符串，也略慢于使用.constructor。
+>14.嗯，差不多。如果在instanceof操作符放置空(null)，未定义(undefined)，或类似不适合对象，则会得到一个TypeError异常。
 
-会然而，这些都是真实的：
+###4.12 谨慎使用instanceof###
 
-    []数组的instanceof
-    （{}）的instanceof对象
-    继承自Object []的instanceof对象/ /阵列
-    / foo /中的instanceof RegExp的/ /正则表达式总是盒装
-    （函数（）{}）instanceof功能
+一般来说instanceof比typeof操作符更为有用，但只能用于装箱值。如下均为假：
 
-的方式来解决的首要问题之一是包装原语：
+    3 instanceof Number
+    'foo' instanceof String
+    true instanceof Boolean
 
-    新号码（3）/ / TRUE的instanceof号
-    新的String（'富'）的instanceof字符串/ /还不错
-    新的布尔值（true）的instanceof布尔/ /还不错
+然而，如下均为真：
 
-在一般情况下，{\ TT（新x.constructor（X）的instanceof x.constructor）}将是真实的，所有的原始{\ TT X}。然而，这并不持有{\ TT空}或{\ TT未定义}。这些将抛出    错误，如果你问他们的构造，据我所知，从来没有从一个构造函数调用的结果返回（使用{\ TT新}，那就是）。
+    [] instanceof Array
+    ({}) instanceof Object
+    [] instanceof Object        // 数组(Array)继承于Object
+    /foo/ instanceof RegExp     // 正则表达式始终为装箱值
+    (function () {}) instanceof Function
+
+解决前面问题方法之一是包装原生值：
+
+    new Number(3)   instanceof Number       // true
+    new String('foo') instanceof String     // true
+    new Boolean(true) instanceof Boolean    // true
+
+一般情况下，（`new x.constructor(x) instanceof x.constructor`）对所有的原生值x均为真。然而，这对空(null)或未定义(undefined)不成立。当调用它们的构造时将抛出错误，而不会从一个构造函数调用的结果返回（就是使用new操作符）。
 
 ###4.13	浏览器不兼容###
-一般来说，因为IE6的浏览器有良好的兼容性为核心语言的东西。然而，一个值得注意的例外是一个IE浏览器的错误，影响| String.split：
 
-    VAR XS ='foo的酒吧BIF分裂（/（\ S +）/）;
-    合理的浏览器XS / /：['富'，''，'酒吧'，'，'BIF]
-    XS / /在IE浏览器：['富'，'酒吧'，'BIF]
+一般来说，从IE6起浏览器对语言核心都有良好的兼容性。然而，一个值得注意的例外是，IE浏览器的错误影响`String.split`：
 
-一个更微妙的错误，我花了几个小时，发现是IE6也不会返回功能的eval（）|：
+    var xs = 'foo bar bif'.split (/(\s+)/);
+    xs              // 正常浏览器：['foo', ' ', 'bar', ' ', 'bif']
+    xs              // IE: ['foo', 'bar', 'bif']
 
-    VAR F =的eval（“（）{返回5}'）;
-    F（）/ /合理的浏览器：5
-    F（）/ /对IE6：“对象”（因为f是不确定的）
+一个更微妙的错误，花了几个小时发现是IE6不会返回函数从eval()：
 
-我敢肯定有其他类似的错误在那里，但最常见的导致的问题一般都是在DOM中。\脚注{jQuery的是你的朋友在这里。它作为一个Javascript品牌库，但实际上它是一个集增强的DOM（1）实现了统一的跨浏览器API，（2）更容易地获取和处理节点。}
+    var f = eval('function() {return 5}');
+    f()             // 正常浏览器： 5
+    f()             // IE6: 期待对象（因为f未定义(undefined)）
+
+肯定有其他类似的错误存在，但最常见的导致的问题一般都是在DOM中[15]。
+
+>15.在这jQuery的是你的朋友。它以Javascript库出名，但实际上它是一个DOM增强集：（1）实现了统一的跨浏览器API，（2）简化获取和处理节点操作。
 
 5 原型(prototype)
 -------------------------
