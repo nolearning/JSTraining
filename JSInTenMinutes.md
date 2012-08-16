@@ -548,7 +548,7 @@ has_truthy_stuff返回false的原因是因为当{}被强制转换为数字，就
         var inst = new tmp();
         var args = [];
         for (var i = 1; i < arguments.length; i++) {
-            args.push(arguments[i];
+            args.push(arguments[i]);
         }
         ctor.apply(inst, args);
         return inst;
@@ -587,59 +587,43 @@ has_truthy_stuff返回false的原因是因为当{}被强制转换为数字，就
 
 >20.!!x是一个惯用法，以确保x最终为为一个布尔值！。这是一个双重否定，!总是返回真(true)或假(false)。
 
-6	一个出色的真相等
+6	出色的相等语句
 -----------------------------
 
-  有关于JavaScript的真正重要的东西不是从它的使用方式是在所有显而易见的。它是这样的：语法| foo.bar的是，在所有情况下，相同
-  |美孚['酒吧'] |。你可以安全地进行这种转变的时间提前到您的代码，无论是在价值属性，方法，或其他任何。通过扩展，可以指定非标识符
-  对象属性的东西：
+JavaScript真正重要的东西并不都是从其使用方式上显而易见。例如：语句`foo.bar`在所有情况下都与`foo['bar']`相同。可以提前安全地对代码进行这种转变，无论是对值属性或其他事物。进一步来说，可以指定非标识符到对象属性：
 
+    var foo = [1, 2, 3];
+    foo['@snorkel!'] = 4;
+    foo['@snorkel!']    // => 4
 
-VAR FOO = [1，2，3];
-为foo ['@潜泳！'] = 4;
-为foo ['@潜泳！'] / / => 4
+当然还可以以这种方式读取属性：
 
+    [1, 2, 3]['length']         // => 3
+    [1, 2, 3]['push']           // => [native function]
 
-  您还可以读取属性这种方式，当然：
+事实上，这是`for (var ... in ...)`语法的内置行为：枚举对象的属性。因此，例如：
 
+    var properties = [];
+    for (var k in document) properties.push (k);
+    properties         // => 一堆字符串
 
-[1，2，3] ['长'] / / => 3
-[1，2，3] ['推'] / / => [本地函数]
+然而，`for ... in`也有暗面，当修改原型时会发生一些很奇怪的事。例如：
 
+    Object.prototype.foo = 'bar';
+    var properties = [];
+    for (var k in {}) properties.push (k);
+    properties          // => ['foo']
 
-  事实上，这是什么|（VAR ...在...）|语法始建做：枚举对象的属性。因此，例如：
+为了解决此问题，应该做两件事。首先，不去修改Object的原型对象(prototype)，因为一切都是Object的实例（包括数组和所有其他装箱对象）;第二，使用hasOwnProperty[21]：
 
+    Object.prototype.foo = 'bar';
+    var properties = [], obj = {};
+    for (var k in obj) obj.hasOwnProperty (k) && properties.push (k);
+    properties          // => []
 
-VAR属性= [];
-（VAR K的文件）properties.push（K）;
-属性/ / =>一大堆字符串
+而且非常重要的是不要用`for... in`遍历数组对象（它返回字符串索引，不是数字，这可能会导致问题）或字符串。如果你对Array或String（或者Object，但你不应该这样做）添加方法，都会导致失败。
 
-
-  然而，|为... |有黑暗的一面。它会做一些很奇怪的事情，当你开始修改原型。例如：
-
-
-object.prototype.foo ='酒吧';
-VAR属性= [];
-（VAR K在{}）properties.push（K）;
-属性/ / => ['foo'的]
-
-
-  为了解决这个问题，你应该做两件事。首先，从来没有修改|对象|的原型，因为一切都是的一个实例对象（包括数组和所有其他盒装的东西）;
-  第二，使用| hasOwnProperty：\脚注{确定，所以你可能想知道为什么我们没有看到{\ TT hasOwnProperty} {\ TT方法...在}循环，因为它显然是一个
-  属性。其原因在于JavaScript的属性有无形的标志（如ECMAScript标准定义），其中被称为{\ TT DontEnum}的。如果{\ TT DontEnum}，设置一些
-  属性，然后{\ TT ...在}循环将无法枚举它。 JavaScript没有提供一种方法来设置你添加到原型{\ TT DontEnum}的标志，因此，使用{\ TT
-  hasOwnProperty}是一个很好的方法，以防止其他人的原型扩展循环。请注意，失败有时在IE6，我相信它始终返回false如果原型用品，
-  名称相同的属性。
-
-
-object.prototype.foo ='酒吧';
-VAR属性= []，OBJ = {};
-（VAR在obj K）obj.hasOwnProperty（K），&& properties.push（K）;
-属性/ / => []
-
-
-  而且非常重要的，从来没有使用| ...在遍历数组（它返回字符串的索引，而不是数字，这可能会导致问题）或字符串。这些要么会失败，如果你
-  {\ TT阵列}或{\ TT字符串}（{\ TT对象}添加方法，但你不应该这样做）。
+>21.为什么没有看到hasOwnProperty在`for ... in`循环，因为它显然是一个属性。其原因在于JavaScript的属性有是否可见的标志（ECMAScript标准定义），其中之一是`DontEnum`。如果`DontEnum`被设置在某些属性上，然后`for ... in`循环将无法枚举它。JavaScript没有提供一种方法来设置`DontEnum`标志到添加到原型对象的事物上，因此，使用hasOwnProperty是一个很好的方法来防止循环时访问他人的原型对象扩展对象。请注意，在IE6中有时会失败；如果原型对象提供一个名称相同的属性，相信会始终返回false。
 
 7	\ {如果你有20分钟...}
 ---------------------------------
