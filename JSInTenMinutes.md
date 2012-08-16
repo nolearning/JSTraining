@@ -530,134 +530,102 @@ has_truthy_stuff返回false的原因是因为当{}被强制转换为数字，就
 
 ###5.1	为什么new操作符很麻烦###
 
-    {\ TT新}有一些很酷的功能（如第一级），但它有一个很可怕的缺点。在Javascript中的大部分功能，可以{\它转发} - 也就是说，你可以写一个新的
-    函数来包装现有的功能被称为永远不会知道其中的差别。例如：
+    new操作符有些很酷的特性（如作为第一级对象），但它有一个很可怕的缺点。在Javascript中的大部分函数可以被转发(forwarded) - 也就是说，可以写一个新的函数来包装现有的函数，其被调用时并不会发现其差别。例如：
 
+    var to_be_wrapped = function (x) {return x + 1};
+    var wrapper = function () {
+        return to_be_wrapped.apply(this, arguments);
+    };
+    // 对所有的x，wrapper(x) === to_be_wrapped(x)
 
-to_be_wrapped =功能（X）{X + 1};
-包装=函数（）{
-  返回to_be_wrapped.apply（这一点，参数）;
-};
-/ /对所有的x，包装（X）=== to_be_wrapped（X）
+然而，new操作符没有这样的机制，在一般情况下无法转发构造，因为new操作符没有apply方法的对等调用方式。 （但这并不完整; 下一节将介绍一个天才的解决办法。）
 
+###5.2 为什么new操作符是不那么可怕###
 
-    然而，{\ TT新}有没有这样的机制。你不能转发构造在一般情况下，因为{\ TT新}相当于{\ TT APPLY}没有。 （虽然这不是整个故事;
-    下一节一个辉煌的解决办法。）
+最近收到一封Ondrej Zara的一封电子邮件说对new 操作符的偏见是不正确的，并对上节中抱怨的问题，有一个非常优雅的解决方法。这里是其实现：
 
+    var Forward = function (ctor /*, args... */) {
+        var tmp = function () {};
+        tmp.prototype = ctor.prototype;
+        var inst = new tmp();
+        var args = [];
+        for (var i = 1; i < arguments.length; i++) {
+            args.push(arguments[i]);
+        }
+        ctor.apply(inst, args);
+        return inst;
+    }
 
-###5.2	\第{为什么{\ TT新}是不那么可怕}###
-    Ondrej扎拉我最近收到一封电子邮件，解释说，我对{\ TT新}偏见不攻自破，并含有抱怨的问题，我这是一个非常优雅的解决方法
-    在上一节。这里是他的执行逐字：
+下面是使用的例子：
 
+    var Class = function(a, b, c) {}
+    var instance = Forward(Class, a, b, c);
+    instance instanceof Class;      // true
 
-VAR正向=函数（构造函数/ *参数* /）{
-  VAR TMP =（）{};
-  tmp.prototype = ctor.prototype;
-  VAR INST =新的TMP（）;
-  VAR ARGS = [];
-  （VAR I = 1;我的arguments.length; +）{args.push（参数[I]）;}
-  ctor.apply（INST里，args）;
-  回到研究所;
-}
+    起初很怀疑这种做法会工作，但还没有找到它失败的例子。这样在Javascript中构造的确可以被转发，与之前的声明相反。
 
+###5.3 为什么要使用原型对象(prototype)###
 
-    \ noindent，会用例：
+如果需要一个动态的分发模式，那么原型对象可能是最好的押注，应该使用它们而不是构建自己的方法。Google的V8针对原型对象做了一系列特定的优化，如同较新发布的Firefox版本。此外，原型对象会节省内存，因为用一个指针指向原型对象是比用n个指针指向n个属性要节约很多。
 
+    另一方面，如果发现正在实现的继承层次结构，那么很可能犯了错。原型在JavaScript是实现继承的有效途径，但在Javascript中继承（1）是慢；（2）是对JavaScript的“一切都是公开的”模型的很差表现。
 
-类=（A，B，C）{}
-VAR实例=（A类，A，B，C）;
-实例instanceof类; / /真
+>18.好吧，这一点有所偏颇。个人认为Javascript与Scheme而不是Smalltalk更类似，所以并未太多考虑经典的面向对象建模。此外闭包很快，非常适用函数式抽象而不是继承。 JavaScript是更适合元编程而不是继承。
 
+>19.在某些情况下很慢。例如，在Firefox 3.5中单层和多层的原型对象查找效率差异巨大。
 
-    起初，我很怀疑，这种做法会工作，但我还没有找到它失败的情况下。这样的构造的确可以被转发在JavaScript中，尽管我以前的索赔
-    与此相反。
+###5.4	自动装箱###
+可能会尝试做类似如下的事：
 
-###5.3	\第{为什么要使用原型}###
-    如果你需要一个动态的调度模式，然后原型可能是你最好的赌注，你应该使用他们，而不是滚你自己的方法。谷歌的V8有一堆
-    原型特定的优化，为以后做的Firefox版本。此外，原型节省内存;有一个指针的原型是比$ N $ $ N $属性的指针要便宜得多。
+    Boolean.prototype.xor = function (rhs) {return !! this !== !! rhs};
 
-    如果，另一方面，你会发现自己实施的实际继承层次结构，那么你很可能犯了一个错误。\脚注{好吧，我被这一点偏颇。我倾向于治疗
-    更像是计划比如Smalltalk中的JavaScript，所以我并不想太多经典的面向对象建模方面。此外，自闭包是真快，这是确定使用功能
-    抽象，而不是继承。 JavaScript的往往是更适合比继承元编程}我已经找到原型是在JavaScript程序的有效途径，但
-    在Javascript继承（1）慢，很慢，在某些情况下\脚注{。在Firefox 3.5之间的单层次和多层次的原型查找差异，例如，
-    巨大的。}（2）不佳的JavaScript的``一切代表的是公众的“模型。
+当运行此代码后，遇到这个惨遭不幸的属性时：
 
-###5.4	\第{自动装箱}###
-    标签\ {秒：自动装箱}
-    你可能会尝试这样的事情：\脚注{{\ TT〜X}是一个成语，以确保{\ TT X}结束了作为一个布尔！。这是一个双重否定，{\ TT！}〜总是
-    返回{\ TT TRUE}或{\ TT假}}
+    false.xor (false)            // => true
 
+原因是，当把一个未装箱值作为一个对象（例如，调用它的一个方法），它就会暂时被装箱为此方法的调用。之后并不改变其值，但意味着失去其曾有的假值特性。根据正在使用的类型，可以把其转换回一个未装箱的值：
 
-boolean.prototype.xor =（RHS）{回报！！ ！！ rhs}中;
+    function (rhs) {return !! this.valueOf () !== !! rhs};
 
+>20.!!x是一个惯用法，以确保x最终为为一个布尔值！。这是一个双重否定，!总是返回真(true)或假(false)。
 
-    ，并运行此代码后，你会碰上这个惨遭不幸的财产：
-
-
-false.xor（假）/ / =>真
-
-
-    原因是，当你把一个未装箱的值作为一个对象（例如，调用它的方法之一），它就会被暂时晋升到该方法调用的目的装箱值。
-    这并不改变它的值后，但它并不意味着它失去任何虚假的，它曾经有过。根据您正在使用的类型，你可以把它转换回一个未装箱的值：
-
-
-功能（RHS）{回报！！ this.valueOf（）！==！ rhs}中;
-
-
-6	\ {一个真正真棒平等}
+6	出色的相等语句
 -----------------------------
 
-  标签\ {秒：一个真正的真棒平等}
-  有关于JavaScript的真正重要的东西不是从它的使用方式是在所有显而易见的。它是这样的：语法| foo.bar的是，在所有情况下，相同
-  |美孚['酒吧'] |。你可以安全地进行这种转变的时间提前到您的代码，无论是在价值属性，方法，或其他任何。通过扩展，可以指定非标识符
-  对象属性的东西：
+JavaScript真正重要的东西并不都是从其使用方式上显而易见。例如：语句`foo.bar`在所有情况下都与`foo['bar']`相同。可以提前安全地对代码进行这种转变，无论是对值属性或其他事物。进一步来说，可以指定非标识符到对象属性：
 
+    var foo = [1, 2, 3];
+    foo['@snorkel!'] = 4;
+    foo['@snorkel!']    // => 4
 
-VAR FOO = [1，2，3];
-为foo ['@潜泳！'] = 4;
-为foo ['@潜泳！'] / / => 4
+当然还可以以这种方式读取属性：
 
+    [1, 2, 3]['length']         // => 3
+    [1, 2, 3]['push']           // => [native function]
 
-  您还可以读取属性这种方式，当然：
+事实上，这是`for (var ... in ...)`语法的内置行为：枚举对象的属性。因此，例如：
 
+    var properties = [];
+    for (var k in document) properties.push (k);
+    properties         // => 一堆字符串
 
-[1，2，3] ['长'] / / => 3
-[1，2，3] ['推'] / / => [本地函数]
+然而，`for ... in`也有暗面，当修改原型时会发生一些很奇怪的事。例如：
 
+    Object.prototype.foo = 'bar';
+    var properties = [];
+    for (var k in {}) properties.push (k);
+    properties          // => ['foo']
 
-  事实上，这是什么|（VAR ...在...）|语法始建做：枚举对象的属性。因此，例如：
+为了解决此问题，应该做两件事。首先，不去修改Object的原型对象(prototype)，因为一切都是Object的实例（包括数组和所有其他装箱对象）;第二，使用hasOwnProperty[21]：
 
+    Object.prototype.foo = 'bar';
+    var properties = [], obj = {};
+    for (var k in obj) obj.hasOwnProperty (k) && properties.push (k);
+    properties          // => []
 
-VAR属性= [];
-（VAR K的文件）properties.push（K）;
-属性/ / =>一大堆字符串
+而且非常重要的是不要用`for... in`遍历数组对象（它返回字符串索引，不是数字，这可能会导致问题）或字符串。如果你对Array或String（或者Object，但你不应该这样做）添加方法，都会导致失败。
 
-
-  然而，|为... |有黑暗的一面。它会做一些很奇怪的事情，当你开始修改原型。例如：
-
-
-object.prototype.foo ='酒吧';
-VAR属性= [];
-（VAR K在{}）properties.push（K）;
-属性/ / => ['foo'的]
-
-
-  为了解决这个问题，你应该做两件事。首先，从来没有修改|对象|的原型，因为一切都是的一个实例对象（包括数组和所有其他盒装的东西）;
-  第二，使用| hasOwnProperty：\脚注{确定，所以你可能想知道为什么我们没有看到{\ TT hasOwnProperty} {\ TT方法...在}循环，因为它显然是一个
-  属性。其原因在于JavaScript的属性有无形的标志（如ECMAScript标准定义），其中被称为{\ TT DontEnum}的。如果{\ TT DontEnum}，设置一些
-  属性，然后{\ TT ...在}循环将无法枚举它。 JavaScript没有提供一种方法来设置你添加到原型{\ TT DontEnum}的标志，因此，使用{\ TT
-  hasOwnProperty}是一个很好的方法，以防止其他人的原型扩展循环。请注意，失败有时在IE6，我相信它始终返回false如果原型用品，
-  名称相同的属性。
-
-
-object.prototype.foo ='酒吧';
-VAR属性= []，OBJ = {};
-（VAR在obj K）obj.hasOwnProperty（K），&& properties.push（K）;
-属性/ / => []
-
-
-  而且非常重要的，从来没有使用| ...在遍历数组（它返回字符串的索引，而不是数字，这可能会导致问题）或字符串。这些要么会失败，如果你
-  {\ TT阵列}或{\ TT字符串}（{\ TT对象}添加方法，但你不应该这样做）。
+>21.为什么没有看到hasOwnProperty在`for ... in`循环，因为它显然是一个属性。其原因在于JavaScript的属性有是否可见的标志（ECMAScript标准定义），其中之一是`DontEnum`。如果`DontEnum`被设置在某些属性上，然后`for ... in`循环将无法枚举它。JavaScript没有提供一种方法来设置`DontEnum`标志到添加到原型对象的事物上，因此，使用hasOwnProperty是一个很好的方法来防止循环时访问他人的原型对象扩展对象。请注意，在IE6中有时会失败；如果原型对象提供一个名称相同的属性，相信会始终返回false。
 
 7	\ {如果你有20分钟...}
 ---------------------------------
