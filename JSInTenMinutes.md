@@ -627,128 +627,105 @@ JavaScript真正重要的东西并不都是从其使用方式上显而易见。�
 
 >21.为什么没有看到hasOwnProperty在`for ... in`循环，因为它显然是一个属性。其原因在于JavaScript的属性有是否可见的标志（ECMAScript标准定义），其中之一是`DontEnum`。如果`DontEnum`被设置在某些属性上，然后`for ... in`循环将无法枚举它。JavaScript没有提供一种方法来设置`DontEnum`标志到添加到原型对象的事物上，因此，使用hasOwnProperty是一个很好的方法来防止循环时访问他人的原型对象扩展对象。请注意，在IE6中有时会失败；如果原型对象提供一个名称相同的属性，相信会始终返回false。
 
-7	\ {如果你有20分钟...}
+7 如果你有20分钟...
 ---------------------------------
 
-  Javascript可以做几乎任何其他语言能做到。然而，它可能不是很明显该如何去。
+Javascript几乎可以做到其他语言能做到的任何事。当然可能不是很明显该如何去做。
 
-7.1	\第{爽人的迭代}
-    因为像Ruby语言向世界展示了如何通过\'E | |循环真的是，很多自我尊重功能的程序员不喜欢用它们。如果你在Firefox中，你
-    不会有阵列原型包括|地图|和|的forEach |功能已经。但如果你正在编写跨浏览器的代码，并没有使用一个库，为他们提供
-    为你，这里是一个很好的方式来实现：
+###7.1	玩酷的迭代###
 
+Ruby一类语言向世界证明for循环过时了，很多自重的函数式程序员不喜欢用它们。如果你在Firefox中，不必使用for，Array原型对象已有map和forEach功能。但如果编写跨浏览器的代码同时没有使用一个提供此种功能的库，下面是一个很好的实现方式：
 
-array.prototype.each = Array.prototype.forEach | |函数（F）{
-  （VAR我= 0，L = this.length; <L + + I）
-    F（[I]）;
-  返回的链接/ /方便
-};
+    Array.prototype.each = Array.prototype.forEach || function (f) {
+        for (var i = 0, l = this.length; i < l; ++i)
+            f(this[i]);
+        return this;        // 易于链式调用
+    };
 
-array.prototype.map = Array.prototype.map | |函数（F）{
-  VAR YS = [];
-  （VAR我= 0，L = this.length; <L + + I）
-    ys.push（f（本[我]））;
-  返回YS;
-};
+    Array.prototype.map = Array.protoype.map || function (f) {
+        var ys = [];
+        (var i = 0, l = this.length; i < l; ++i)
+            ys.push(f (this[i]);
+        return ys;
+    };
 
+据知，这是（几乎）最快实现这些功能的方式。预先声明两个变量（i和l）缓存数组长度，Javascript不清楚在for循环中this.length的不变性，所以它会每次都检查如果我们没缓存。这非常昂贵，由于装箱，哈希查找会失败，然后到下一层查找this.__proto__，在这找到这一特殊属性length。然后会有一个方法调用会去获取长度[22]。
 
-    据我所知，这是（几乎）以最快的方式来写这些功能。我们声明两个变量前（|我|和| L |），这样的长度是缓存; Javascript将不知道
-    this.length是不变与| |循环，所以它会检查每一个时间，如果我们不能缓存。这是昂贵的，因为由于拳击，我们就会有一个失败的哈希查找
-    |这|，然后下降到this.__proto__ |，会发现它的特殊属性的长度。然后，方法调用会发生检索
-    |长度|。\脚注{得到的Javascript如何呈现某些API。它内部有一个gettable和设置属性的概念，虽然没有一个跨浏览器的方法
-    创建它们。但属性，如{\ TT长度} {\ TT的ChildNodes}等〜是所有真正的方法调用，而不是实地查找。 （尝试分配到一个，你会看到。）}
+唯一可做的进一步优化是通过倒序遍历数组（只对each，因为map假定正序）：
 
-    只有进一步优化，可以通过阵列向后（只|每|，因为|地图|假设维持秩序）：
+    Array.prototype.each = function (f) {
+        for (var i = this.length - 1; i >= 0; --i)
+            f (this[i]);
+    };
 
+此实现效率略高于前一个，因为它改浮点减法（计算`非零<`表达式时使用）为正负符号检查，内部是个按位(bitwise)和零值判断跳转。除非所用JavaScript引擎内联函数并确实需要最优性能（在这点，首先该问问为何用Javascript），否则无需考虑的一个`非零<`相对`零>=`的开销。
 
-array.prototype.each =功能（F）{
-  （I = this.length - 1> = 0; - 我）
-    F（[I]）;
-};
+还可以对所有对象定义迭代器，但不应如下去做：
 
+    //不不不！不要这样做！
+    Object.prototype.each = function (f) {
+        for (var k in this) this.hasOwnProperty (k) && f (k);
+    };
 
-    这结束是非常略高于第一实现更快，因为它改变了一个浮点减法（需要评估\ | <|为非零数量）成一个符号动词
-    检查，它的内部是按位|和|和零谓跳。除非你的JavaScript引擎，内联函数，你真的有决心，有杀手的性能（在
-    这点，我会问你为什么摆在首位的Javascript），你可能永远需要考虑的一个非零相对开销| <|和〜零|> = |。
+更好是实现一个单独的keys函数，以避免污染Object的原型对象：
 
-    您还可以定义一个迭代器对象，但不是这个样子：
+    var keys = function (o) {
+        var xs = [];
+        for (var k in o) o.hasOwnProperty (k) && xs.push (k);
+        return xs;
+    }
 
+>22.这要了解Javascript如何呈现特定的API。它内部有一个gettable和settable属性的概念，虽然没有一个跨浏览器的方法去创建它们。但属性如length，ChildNodes等都是真正的方法调用，而不是范围查找。 （尝试对其赋值，就会了解。）**译注：Chrome下可能有不同实现，需翻阅Google V8代码。**
 
-/ /没有！！不这样做！
-object.prototype.each =功能（F）{
-  （VAR在此K）this.hasOwnProperty（K）&& F（K）;
-};
+###7.2 Java类和接口###
+    任何理智的人任何时候都不希望使用这些。但是如果疯了或被迫使用，那么Google Web Toolkit会提供一种蹩脚的方式把它转为JavaScript。
 
+###7.3 递归元类###
 
-    更好的是要实现一个单独的|键|功能，以避免污染|对象|原型：
+有不同方法来实现这点，但一个直接的方法是这样做的：
 
+    var metaclass = {methods: {
+        add_to: function (o) {
+            var t = this;
+            keys (this.methods).each (function (k) {
+                o[k] = bind (t.methods[k], o);      //这里不能使用this
+            });
+            return o}}};
+    metaclass.methods.add_to.call (metaclass, metaclass);
 
-VAR键=功能（O）{
-  XS = [];
-  （VAR在O K）o.hasOwnProperty（K），&& xs.push（K）;
-  返回XS;
-};
+在这点上，元类对象本身就是一个元类。现可以开始实现其实例：
 
+    var regular_class = metaclass.add_to ({methods: {}});
+    regular_class.methods.def = function (name, value) {
+        this.methods[name] = value;
+        return this;
+    };
+    regular_class.methods.init = function (o) {
+        var instance = o || metaclass.add_to ({methods: {}});      //译注：原文此处为 var instance = o || {methods: {}};存在问题，
+        this.methods.init && this.methods.init.call (instance);
+        return this.add_to (instance);
+    };
+    regular_class.add_to (regular_class);
 
-7.2	\第{Java类和接口}
-    任何理智的人任何时候都希望使用这些。但是，如果你是疯了或正在被迫，那么谷歌Web工具包会给你一种方式来拍摄自己的脚，把它变成
-    中的JavaScript。
+这是个Ruby风格的类，可以定义公共方法和构造。如：
 
-7.3	\第{递归元类}
-    有不同的方法来实现这一点，但一个简单的方法是这样做的：\脚注{请记住，一类是只是一个函数，它产生的实例。一无所知
-    {\ TT新的关键字是必要的，写面向对象的代码（谢天谢地）。}
+    var point = regular_class.init();
+    point.def ('init', function () {this.x = this.y = 0});
+    point.def ('distance', function () {
+        return Math.sqrt (this.x * this.x + this.y * this.y)});
 
+使用的是繁冗的`this.x`，这可能让回避Python的Ruby爱好者不喜。幸运的是，可以利用动态重写来使用$，通常Ruby爱好者使用@[24]：
 
-元类= {方法：{
-  add_to功能：（O）{
-    T =;
-    键（this.methods）（函数（k）{
-      问题o [K] = BIND（t.methods [K]，O）; / /不能使用/ /这里
-    }）;
-    返回O}};
-metaclass.methods.add_to.call（元类，元类）;
+    var ruby = function (f) {
+        return eval (f.toString ().replace (/\$(\w+)/g,
+            function (_, name) {return 'this.' + name}));
+    };
 
+    point.def ('init', ruby (function () {$x = $y = 0}));
+    point.def ('distance', ruby (function () {
+        return Math.sqrt ($x * $x + $y * $y)}));
 
-    在这一点上，|元类本身现在是|元类。我们就可以开始执行它的实例：
-
-
-VAR regular_class = metaclass.add_to（{方法：{}}）;
-regular_class.methods.def =功能（名称，值）{
-  this.methods [名称] =值;
-  返回本;
-};
-regular_class.methods.init =函数（O）{
-  实例= O | | {方法：{}};
-  this.methods.init && this.methods.init.call（实例）;
-  返回this.add_to（实例）;
-};
-regular_class.add_to（regular_class）;
-
-
-    这是一个Ruby风格的类，在这里你可以定义公共方法和构造。因此，例如：
-
-
-点= regular_class.init（）;
-point.def（'初始化'，函数（）{this.x = this.y = 0}）;
-point.def（“距离”，函数（）{
-  返回Math.sqrt（this.x * this.x + this.y * this.y）}）;
-
-
-    我们使用的是相当冗长| this.x |，这可能会得罪一些Python-避开的Ruby爱好者。幸运的是，我们可以使用动态重写使用| $ |地方Ruby爱好者将使用
-    | @ |：{。，事实上，我们可以烤成一个元类，使其完全透明的，如果我们想{\ TT改造红宝石（）}} \脚注
-
-
-VAR红宝石=功能（F）{
-  返回的eval（f.toString（）（/ \ $（\ W +）/克，
-    函数（，名称）{返回'。“ +名称}））;
-};
-
-point.def（“初始化”，红宝石（函数（）{$ X = $ Y = 0}））;
-point.def（“距离”，红宝石（函数（）{
-  返回Math.sqrt（$ X * $ x + $ Y * $ Y）}））;
-
-
-    现在你可以使用这个类：
+现在你可以使用这个类：
 
 
 P = point.init（）;
@@ -775,7 +752,11 @@ p.distance（）/ / => 5
     |跟踪|（这是不是内置的，所以你必须定义一个Javascript）被称为每次任何方法|点|实例被称为，这将有机会获得
     双方的观点和国家。
 
-7.4	\第{尾调用}
+>23.请记住，Javascript中类是只是个产生实例的函数。new关键字不是必要的对写面向对象的代码（谢天谢地）。
+
+>24.事实上，我们可以将`ruby()`转换为一个元类，使其完全透明的做到要做的。
+
+###7.4 尾调用##
     JavaScript并没有做尾部调用优化默认情况下，这是一种耻辱，因为有些浏览器调用栈短（最短的，我所知道的是500帧，由特别
     很快，当你有绑定功能和迭代）。幸运的是，在Javascript编码尾调用，实际上是非常简单的：
 
@@ -852,8 +833,9 @@ fact3（3，20，K）...
 
     这不是一个糟糕的表现命中， - 两个元素的数组的指针分配的开销是最小的。
 
-7.5	\第{的句法宏和操作符重载}
-    懒惰的范围，让我们做一些很酷的东西。比方说，我们要定义一个新的变量声明的语法形式，代替：
+###7.5 句法宏和操作符重载###
+
+懒惰的范围，让我们做一些很酷的东西。比方说，我们要定义一个新的变量声明的语法形式，代替：
 
 
 VAR =函数（）{
@@ -947,9 +929,10 @@ expand_when（函数（）{
     含糊不清的语法是无益的。例如，在Firefox中，写多余的括号表达式是没有用的，因为这些多余的括号丢失，当你调用{\ TT
     的toString}}
 
-8	\ {进一步阅读}
+8 进一步阅读
 ----------------------------
-  我强烈建议阅读（\ URL {http://jquery.com}）jQuery的代码库的质量和自觉性。这是一个辉煌的一块工作，我学到了大量
+
+我强烈建议阅读（\ URL {http://jquery.com}）jQuery的代码库的质量和自觉性。这是一个辉煌的一块工作，我学到了大量
   通过它刨着左右。
 
   道格拉斯，克罗克福德已书面包括知名{\它的JavaScript：好的零件}一些优秀的Javascript引用，语言和一个不太知名的，但免费在线旅游
