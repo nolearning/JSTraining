@@ -680,7 +680,7 @@ Ruby一类语言向世界证明for循环过时了，很多自重的函数式程�
 ###7.2 Java类和接口###
     任何理智的人任何时候都不希望使用这些。但是如果疯了或被迫使用，那么Google Web Toolkit会提供一种蹩脚的方式把它转为JavaScript。
 
-###7.3 递归元类###
+###7.3 递归元类(metaclass)###
 
 有不同方法来实现这点，但一个直接的方法是这样做的：
 
@@ -717,8 +717,11 @@ Ruby一类语言向世界证明for循环过时了，很多自重的函数式程�
 使用的是繁冗的`this.x`，这可能让回避Python的Ruby爱好者不喜。幸运的是，可以利用动态重写来使用$，通常Ruby爱好者使用@[24]：
 
     var ruby = function (f) {
-        return eval (f.toString ().replace (/\$(\w+)/g,
-            function (_, name) {return 'this.' + name}));
+        //此处最新浏览器支持存在问题
+        //return eval (f.toString ().replace (/\$(\w+)/g,
+        //    function (_, name) {return 'this.' + name}));
+        return new Function ("return " + f.toString ().replace (/\$(\w+)/g,
+            function (_,name) {return 'this.' + name}))();
     };
 
     point.def ('init', ruby (function () {$x = $y = 0}));
@@ -727,227 +730,183 @@ Ruby一类语言向世界证明for循环过时了，很多自重的函数式程�
 
 现在你可以使用这个类：
 
+    var p = point.init ();
+    p.x = 3, p.y = 4;
+    p.distance ()   // => 5
 
-P = point.init（）;
-p.x = 3，p.y = 4;
-p.distance（）/ / => 5
+使用元类的优点是，可以利用它们的结构做有趣的东西。例如，假设要插入跟踪方法到所有的point对象中以便调试[25]：
 
+    keys (point.methods).each (function (k) {
+        var original = point.methods[k];
+        point.methods[k] = function () {
+            trace ('Calling method ' + k + ' with arguments ' +
+                Array.protoype.join.call (arguments, ', '));
+            return original.apply (this, arguments);
+        };
+    });
 
-    使用元类的优点是，你可以做有趣的东西，它们的结构。例如，假设我们要插入到我们的所有点的调试方法跟踪
-    用途：\脚注{这里的例子使用含有{\ TT arguments.join}，表达，这是无效的 - {\ TT参数}是不是一个数组。现在，它使用的``假装这是一个数组
-    上调用{\ TT连接}“的成语，通常的目的。 （虽然你有时不是广义方法的错误，是对浏览器的情况下，如果您尝试使用
-    {\，TT Array.prototype.toString（）}这种方式。）}
-
-
-键（point.methods）（函数（k）{
-  VAR原point.methods [K];
-  point.methods [K] =函数（）{
-    跟踪（“调用方法”+ K +'参数'+
-           array.prototype.join.call（参数，'，'））;
-    返回original.apply（这一点，参数）;
-  };
-}）;
-
-
-    |跟踪|（这是不是内置的，所以你必须定义一个Javascript）被称为每次任何方法|点|实例被称为，这将有机会获得
-    双方的观点和国家。
+这样在任何point实例的函数被调用时，trace函数（这是不是Javascript内置的，所以必须定义一个）将有机会获得调用获取其参数和状态。
 
 >23.请记住，Javascript中类是只是个产生实例的函数。new关键字不是必要的对写面向对象的代码（谢天谢地）。
 
 >24.事实上，我们可以将`ruby()`转换为一个元类，使其完全透明的做到要做的。
 
+>25.此例中尝试用表达式`arguments.join`将是无效的——arguments不是一个数组。现在使用的“假装这是一个数组，在其上调用join”的惯用法，通常这会工作。（虽然你有时会收到不是泛型方法的错误，当在Chrome浏览器下以类似方式尝试使用`Array.toString()`时。译注：此处原文为`Array.prototype.toString()`可以工作）
+
 ###7.4 尾调用##
-    JavaScript并没有做尾部调用优化默认情况下，这是一种耻辱，因为有些浏览器调用栈短（最短的，我所知道的是500帧，由特别
-    很快，当你有绑定功能和迭代）。幸运的是，在Javascript编码尾调用，实际上是非常简单的：
 
+JavaScript默认无尾调用优化，这是一种耻辱，因为有些浏览器调用栈是短时的（最短的，知道的是有500帧完成特别快，当有绑定函数和迭代时）。幸运的是，在Javascript编写尾调用实际上是非常简单的：
 
-function.prototype.tail =函数（）{[这一点，参数]};
-function.prototype.call_with_tco =函数（）{
-  VARç= [这一点，参数;
-  逃生=参数的arguments.length - 1];
-  （C [0] ==逃生）
-    C = C [0]申请（本，C [1]）;
-  escape.apply返回（这一点，C [1]）;
-};
+    Function.prototype.tail = function () {return [this, arguments]};
+    Function.prototype.call_with_tco = function () {
+        var c       = [this, arguments];
+        var escape  = arguments[arguments.length - 1];
+        while (c[0] !== escape)
+            c = c[0].apply(this, c[1]);
+        return escape.apply (this, c[1]);
+    };
 
+现在可以用这个定义来写一个尾调用优化的阶乘函数：
 
-    现在我们可以用这个定义来写尾部调用优化的阶乘函数：\脚注{这种技术被称为{\ EM蹦床}，并不构成实施分隔
-    延续，后来我发现。然而，它还是蛮爽的。}
+    //标准的递归定义
+    var fact1 = function (n) {
+        return n > 0 ? n * fact1 (n - 1) : 1;
+    };
 
+    //尾递归定义
+    var fact2 = function (n, acc) {
+        return n > 0? fact2(n-1, acc * n) : acc;
+    };
 
-/ /标准的递归定义
-fact1 =功能（N）{
-  返回N> 0？ N * fact1（N - 1）：1;
-};
+    //采用自定义的尾调用机制
+    var fact3 = function (n, acc, k) {
+        return n > 0 ？ fact3.tail (n - 1, acc * n, k) : k.tail (acc);
+    };
 
-/ /尾递归定义
-fact2 =功能（ACC）{
-  返回N> 0？ fact2（N - 1，ACC * N）：ACC;
-};
+前两个函数可以直接调用：
 
-/ /我们的尾部调用机制
-fact3 =功能（N，K），ACC {
-  返回N> 0？ fact3.tail（N - 1，ACC * N，K）：k.tail（ACC）;
-};
+    fact1(5)    // => 120
+    fact2(5,1)  // => 120
 
+但这两者均不能在定长的堆栈空间运行。另一方面，第三个函数需要以以下方式调用：
 
-    前两个函数通常可以被称为：
+    var id = function (x) {return x};
+    fact3.call_with_tco (5, 1, id)      // => 120
 
+尾调用优化策略的工作方式不是创建新的堆栈帧：
 
-fact1（5）/ / => 120
-fact2（5，1）/ / => 120
+    fact1(5)
+        5 * fact1(4)
+            4 * fact1(3)
+            ...
 
+也不是创造无用的堆栈帧：
 
-    \ noindent，会，但双方将在不断的堆栈空间运行。第三，另一方面，如果我们把它这种方式：
+    fact2(5, 1)
+        fact2(4, 5)
+            fact2(3, 20)
+            ...
 
+而是在分配新的栈之前弹出最后的堆栈帧（将[function, args]数组看作要返回的一种continuation）：
 
-ID =函数（X）{X};
-fact3.call_with_tco（5，1，ID）/ / => 120
+    fact3(5, 1, k) -> [fact3, [4, 5, k]]
+    fact3(4, 5, k) -> [fact3, [3, 20, k]]
+    fact3(3, 20, k) ...
 
+这不导致性能问题，两个指针元素数组分配的开销是最小的。
 
-    尾部调用优化策略的工作方式，而不是创建新的堆栈帧：
-
-
-fact1（5）
-  5 * fact1（4）
-    4 * fact1（3）
-    ...
-
-
-    \ noindent，会甚至创造空心的：
-
-
-fact2（5，1）
-  fact2（4，5）
-    fact2（3 20）
-    ...
-
-
-    \ noindent，会弹出最后的堆栈帧分配一个新的（处理阵列之前[功能中，args] |要返回的延续）：
-
-
-fact3（5，1，K） - > [fact3，[4，5，K]
-fact3（4，5，K） - > [fact3，[3，20，K]
-fact3（3，20，K）...
-
-
-    这不是一个糟糕的表现命中， - 两个元素的数组的指针分配的开销是最小的。
+>26.这种技术被称为trampolining而且不包含delimited continuation实现，在后来发现。然而，它还是蛮爽的。
 
 ###7.5 句法宏和操作符重载###
 
-懒惰的范围，让我们做一些很酷的东西。比方说，我们要定义一个新的变量声明的语法形式，代替：
+可以使用懒惰区域做一些很酷的东西。比方说，要定义一个变量声明的新句法形式来代替现有的：
 
+    var f = function () {
+        var y = (function (x) {return x + 1}) (5);
+        ...
+    };
 
-VAR =函数（）{
-  Y =（（X）返回X + 1}）（5）;
-  ...
-};
+可以写做：
 
+    var f = function () {
+        var y = (x + 1).where (x = 5);
+        ...
+    };
 
-    \ noindent，会我们可以写：
+这可以用正则表达式实现，如果不介意大约一半的时间都存在错误：
 
+    var expand_where = function (f) {
+        var s = f.toString ();
+        //译注：原文正则未对空白进行处理，未正确处理where内表达式
+        //return eval (s.replace (/\(([^)]+)\)\.where\(([^)])\)/,
+        return eval (s.replace (/\(([^)]+)\)\.where\s+\(([^)]+)\)/,
+            function (_, body, value) {
+                return '(function (' + value.split ('=')[0] + '){return ' +
+                    body + '}) (' + value.split ('=', 2)[1] + ')';
+            }));
+    };
 
-VAR =函数（）{
-  Y =（X + 1）（X = 5）;
-  ...
-};
+现在可以这样做：
 
+    var f = expand_where( function () {
+        var y = (x + 1).where (x = 5);
+        ...
+    });
 
-    这可以在正则表达式实现，如果我们不介意，大约一半的时间远远不正确：
+显然一个可用的解析器更合适的，因为它不会因为简单括号边界而失败。更重要的是认识到这样一个函数给你一个类似Lisp引用代码的方式：
 
+    (defmacro foo (bar) ...)
+    (foo some-expression)
 
-expand_where =功能（F）{
-  VAR = f.toString（）;
-  返回的eval（s.replace（/ \（（[^）]）\）\（（[^）]）\）/ \。，
-    函数（，身体，值）{
-      返回'（功能（“+ value.split（'='）[0 +'）{回报'+
-             机身+'}）（“+ value.split（'='，2）[1] +”）“;
-    }））;
-};
+在Javascript做这个（假设存在parse和deparse，这个是相当复杂的）：
 
+    var defmacro = function (transform) {
+        return function (f) {
+            return eval (deparse (transform (parse (f.toString ()))));
+        };
+    };
+    var foo = defmacro (function (parse_tree) {
+        return ...;
+    });
+    foo (function () {some-expression});
 
-    现在，我们可以这样说：
+这个原则可以扩展来允许操作符重载，通过定义一个改写操作符为方法调用的转换：
 
+    x << y      // 变为 x['<<'](y)
 
-VAR = expand_where（的函数（）{
-  Y =（X + 1）（X = 5）;
-  ...
-}）;
+请记住，属性名不限制与标识符，所以可以对数组重载<<操作符来使其与Ruby中表现类似：
 
+    Array.prototype['<<'] = function () {
+        for (var i = 0, l = arguments.length; i < l; ++i)
+            this.push (arguments[i]);
+        return this;
+    };
 
-    显然是一个适当的解析器是比较合适的，因为它不会失败简单括号边界的。但重要的是实现一个函数给你一个引用代码的方式，只是
-    喜欢在Lisp：
+在Javascript中实施此类东西比Lisp唯一不幸的是，Javascript句法构造融入到语法中，所以不易引进引进新的句法形式，如：
 
+    expand_when(function () {
+        when (foo) {        // compiler erro; { unexpected
+            bar ();
+        }
+    });
 
-（defmacro美孚（栏）...）
-（foo的一些表达）
+但是，可以利用Javascript解析树做任何事， 这是公平的游戏。
 
+>27.解析函数真实实现位于[http://github.com/spencertipping/caterwaul](http://github.com/spencertipping/caterwaul)，如果有兴趣可以去阅读代码。这也是合理的参考对句法边缘用例。
 
-    \ noindent，会成为在Javascript（假设存在|解析|和| deparse |，这是相当复杂）：\脚注{这些真实的版本中实现的
-    \ URL {http://github.com/spencertipping/caterwaul}的，如果你有兴趣，看到他们的样子。这也是合理的句法边缘案件参考。
-
-
-VAR defmacro =（变换）{
-  返回功能（F）{
-    返回的EVAL（deparse的（转换（解析（f.toString（）））））;
-  };
-};
-VAR FOO = defmacro（功能（parse_tree）{
-  回归......;
-}）;
-美孚（函数（）{一些表达式}）;
-
-
-    这个原则可以扩展到允许操作符重载，如果我们写改写成方法调用运营商的转型：
-
-
-X << Y / /变为x [“<<”]（Y）
-
-
-    请记住，属性名不限制标识符 - 所以我们可以重载| <<阵列工作，就像它在Ruby中没有与运营商：
-
-
-array.prototype ['<<'] =函数（）{
-  （VAR我= 0，L =的arguments.length; <L + + I）
-    this.push（参数[I]）;
-  返回本;
-};
-
-
-    这是关于实施这种东西在Javascript中，而比Lisp不幸的是唯一的Javascript烤成语法的语法结构，所以试图引进新的
-    句法形式，如| |时，是不是很方便：
-
-
-expand_when（函数（）{
-  当（富）{/ /编译错误; {意外
-    酒吧（）;
-  }
-}）;
-
-
-    但是，什么可以做，里面的Javascript解析树是公平的游戏。\脚注{记住{\ TT的toString}有时会重写你的函数的标准形式，所以利用
-    含糊不清的语法是无益的。例如，在Firefox中，写多余的括号表达式是没有用的，因为这些多余的括号丢失，当你调用{\ TT
-    的toString}}
+>28.记住toString有时会重写函数到标准形式，所以利用含糊不清的语法是无益的。例如，在Firefox中，写多余的括号表达式是没有用的，因为这些多余的括号在调用toString时会丢失。
 
 8 进一步阅读
 ----------------------------
 
-我强烈建议阅读（\ URL {http://jquery.com}）jQuery的代码库的质量和自觉性。这是一个辉煌的一块工作，我学到了大量
-  通过它刨着左右。
+强烈建议阅读[jQuery](http://jquery.com)，因其代码质量和严谨性。这是个杰作，不断深入其中可以学到了大量的知识。
 
-  道格拉斯，克罗克福德已书面包括知名{\它的JavaScript：好的零件}一些优秀的Javascript引用，语言和一个不太知名的，但免费在线旅游
-  \网址{http://javascript.crockford.com/survey.html}的\脚注{他JavaScript和矿山之间有一些差异。既不是不正确的，只是不同的不成文
-  假设。例如，当他说，有三个原始，他是正确的，他计数装箱交涉，而我算他们的文字数量
-  构造。}
+    Douglas Crockford撰写了不少优秀的Javascript参考，包括这本名著《Javscript：The Good Parts》和一个不太知名但免费的在线Javascript语言概览在[http://javascript.crockford.com/survey.html](http://javascript.crockford.com/survey.html)}。
 
-  作为一个无耻的插件，我也建议通过三岔口（\ URL {http://github.com/spencertipping/divergence}），我写了一个库，阅读。这是非常不同 - 从jQuery更
-  简洁和算法（并没有DOM参与）。 jQuery使用更传统的方法，而分歧往往使倒闭的大量使用和功能的元编程。
+毫无羞愧地推荐阅读本人作品[Divergence](http://github.com/spencertipping/divergence)。其余jQuery完全不同，更简洁和更算法话（无DOM参与）。 jQuery使用更传统的方法，而Divergence更多使用闭包(closures)和函数式元编程。
 
-  如果你的Lisp和元编程，你也可能享受\ URL {http://github.com/spencertipping/divergence.rebase}和\ URL {http://github.com/spencertipping/caterwaul}的两个项目
-  使用功能系列化和的eval（）|实施一些在最后一节中提到的语法扩展。
+当进入Lisp和元编程世界，可能会享受[http://github.com/spencertipping/divergence.rebase](http://github.com/spencertipping/divergence.rebase)和[http://github.com/spencertipping/caterwaul](http://github.com/spencertipping/caterwaul)，这两个项目使用函数串化和eval()来实现在最后一节中提到的部分语法扩展。
 
-  另外，我最近发现称为\ URL {http://wtfjs.com}网站，这似乎是致力于揭露所有JavaScript的边缘的情况下病症。这是相当有趣，启发读。更
-  深入看看JavaScript的好，坏，丑陋的部分是\网址{http://perfectionkills.com}的;本网站书面的PrototypeJS开发商之一，已经说服了我，我真的
-  不知道的Javascript。
-\ {文件}
+另外，最近发现[http://wtfjs.com[(http://wtfjs.com)网站，似乎致力于揭露所有JavaScript的边缘情况下的问题。读起来相当有趣和具有启发性。想更深入了解JavaScript的好、坏和丑陋的部分，建议去[http://perfectionkills.com](http://perfectionkills.com),此站点是由PrototypeJS的开发者之一编写，使本人相信是真的不知道的Javascript是如此之好。
 
+>29.本人和他在JavaScripts上观点存在一些差异。没有谁是不正确的，只是不同的不成文假设。例如，当他说，有三个原生值类型是正确的，他通过未装箱表示法数目来统计类型数目，而本人则通过字面构造数来统计。 
